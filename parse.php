@@ -93,43 +93,87 @@
         do_action( 'telegram_parse_location', $USERID, $data['message']['location']['latitude'], $data['message']['location']['longitude']);
         return;
     } else if ( isset( $data['message']['photo'] ) ) {
-		do_action( 'telegram_parse_photo', $USERID, $data['message']['photo'] );
-		return;
+	    	$imgcaption = date("F j, Y, g:i a") . ' from: @' . $data['message']['from']['username'] . ' ' . $data['message']['from']['first_name'] . ' ' . $data['message']['caption'];
+		do_action( 'telegram_parse_photo', $USERID, $data['message']['photo'], $imgcaption );
+		return;,
 	} else if ( isset( $data['message']['document'] ) ) {
-		do_action( 'telegram_parse_document', $USERID, $data['message']['document'] );
+		if( $data['message']['document']['mime_type'] == 'image/jpeg' ) {
+			$imgcaption = date("F j, Y, g:i a") . ' from: @' . $data['message']['from']['username'] . ' ' . $data['message']['from']['first_name'] . ' ' . $data['message']['caption'];
+			do_action( 'telegram_parse_photo', $USERID, $data['message']['document'], $imgcaption );	
+		} 
+		else 
+			do_action( 'telegram_parse_document', $USERID, $data['message']['document'] );
 		return;
-	}
+	} else if ( isset( $data['message']['audio'] ) ) {
+                do_action( 'telegram_parse_audio', $USERID, $data['message']['audio'] );
+                return;
+        } else if ( isset( $data['message']['contact'] ) ) {
+                do_action( 'telegram_parse_contact', $USERID, $data['message']['contact'] );
+                return;
+        } else if ( isset( $data['message']['sticker'] ) ) {
+                do_action( 'telegram_parse_sticker', $USERID, $data['message']['sticker'] );
+                return;
+        } else if ( isset( $data['message']['poll'] ) ) {
+                do_action( 'telegram_parse_poll', $USERID, $data['message']['poll'] );
+                return;
+        }
 
     do_action( 'telegram_parse', $USERID, $COMMAND ); //EXPERIMENTAL
 
     $ok_found = false;
-    if ( $COMMAND != '' ) {
-        query_posts('post_type=telegram_commands&posts_per_page=-1');
-        while (have_posts()):
-            the_post();
-            $lowertitle = strtolower(  get_the_title() );
-            $lowermessage = strtolower( $COMMAND );
-            if (
-                ( $lowertitle == $lowermessage )
-                ||
-                ( strpos( $lowermessage, $lowertitle.' ' ) === 0 )
-                ||
-                ( in_array(  $lowermessage, explode(",", $lowertitle ) ) )
-               ) {
-                $ok_found = true;
+   	if ( !empty($COMMAND) ) {
+    	
+		global $wpdb, $q_config;
+		$hunacc_chrs = array('á', 'é', 'í', 'ó', 'ő', 'ú', 'ű', 'ü', 'ö');
+		$nonacc_chrs = array('a', 'e', 'i', 'o', 'o', 'u', 'u', 'u', 'o');
 
-                if ( has_post_thumbnail( get_the_id() ) ) {
-                    $image = wp_get_attachment_image_src( get_post_thumbnail_id(), 'medium', true );
-                    telegram_sendphoto( $USERID, get_the_id(), $image[0] );
-                }
-                else {
-                    telegram_sendmessage( $USERID, get_the_id() );
-                }
+    	$lowermessage = strtolower(trim($COMMAND));
+	$lowermessageelements = preg_split('/\s*[!\"\',.:;?`]\s*/', $lowermessage, -1, PREG_SPLIT_NO_EMPTY);
+    	
+	$sql = 'SELECT ID,post_title FROM wp_posts WHERE post_type = "telegram_commands" AND post_status = "publish" AND post_title LIKE "%' . implode('%" OR post_title LIKE "%', $lowermessageelements) .'%"';
+        $res = $wpdb->get_results($sql);       	
+	    telegram_log('CMDS', $USERID, 'res ' . print_r($res,true));
+	    telegram_log('CMDS', $USERID, 'sql ' . print_r($sql,true));
+	    telegram_log('CMDS', $USERID, 'lowermessageelements ' . print_r($lowermessageelements,true));
+
+	 if ( $data['message']['from']['language_code'] == 'hu'){
+		$q_config['language'] = 'hu';
+		$lowermessage = implode(',', $lowermessageelements);
+	        $lowermessageelements = explode(',', str_replace($hunacc_chrs, $nonacc_chrs, $lowermessage));
+	    }
+	 
+	    foreach($res as $reskey => $reselement) {
+	        $lowertitle = strtolower(qtranxf_useCurrentLanguageIfNotFoundUseDefaultLanguage($reselement->post_title));
+	        if(substr($lowertitle, 0, 10) == '(english) ')
+	            $lowertitle=substr($lowertitle, 10);
+		    $lowertitle = explode(',', $lowertitle);
+		    if ( $data['message']['from']['language_code'] == 'hu')
+			    $lowertitle = str_replace($hunacc_chrs, $nonacc_chrs, $lowertitle);
+		        telegram_log('CMDS', $USERID, 'lowertitle from db ' . print_r(qtranxf_useCurrentLanguageIfNotFoundUseDefaultLanguage($reselement->post_title),true) . ' || language code from the message ' . $data['message']['from']['language_code']);
+		        telegram_log('CMDS', $USERID, 'lowertitle' . print_r($lowertitle,true));
+		        telegram_log('CMDS', $USERID, 'lowermessage ' . print_r($lowermessage,true));
+		
+         if( empty(array_intersect ($lowermessageelements, $lowertitle)) ){
+             			telegram_log('CMDS', $USERID, 'removed ' . print_r($res[$reskey],true));
+						unset($res[$reskey]);
             }
-
-        endwhile;
-    }
-
+		}
+			
+        if(count($res) >= 1) {
+            $ok_found = true;
+            foreach($res as $reselement) {
+                $postid = (int) $reselement->ID;
+                if($postid) {
+				    if ( has_post_thumbnail( $postid ) ) {
+                        $image = wp_get_attachment_image_src( get_post_thumbnail_id( $postid ), 'medium', true );
+                        telegram_sendphoto( $USERID, $postid, $image[0] );
+          	        }
+                    else {
+                        telegram_sendmessage( $USERID, $postid );
+                    } 
+			    }
+            } 
+		
 	if ( $PRIVATE ) {
 		switch ($data['message']['text']) {
 			case '/stop':
