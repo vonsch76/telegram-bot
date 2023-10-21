@@ -132,9 +132,6 @@
     	
 	$sql = 'SELECT ID,post_title FROM wp_posts WHERE post_type = "telegram_commands" AND post_status = "publish" AND post_title LIKE "%' . implode('%" OR post_title LIKE "%', $lowermessageelements) .'%"';
         $res = $wpdb->get_results($sql);       	
-	    telegram_log('CMDS', $USERID, 'res ' . print_r($res,true));
-	    telegram_log('CMDS', $USERID, 'sql ' . print_r($sql,true));
-	    telegram_log('CMDS', $USERID, 'lowermessageelements ' . print_r($lowermessageelements,true));
 
 	 if ( $data['message']['from']['language_code'] == 'hu'){
 		$q_config['language'] = 'hu';
@@ -149,12 +146,8 @@
 		    $lowertitle = explode(',', $lowertitle);
 		    if ( $data['message']['from']['language_code'] == 'hu')
 			    $lowertitle = str_replace($hunacc_chrs, $nonacc_chrs, $lowertitle);
-		        telegram_log('CMDS', $USERID, 'lowertitle from db ' . print_r(qtranxf_useCurrentLanguageIfNotFoundUseDefaultLanguage($reselement->post_title),true) . ' || language code from the message ' . $data['message']['from']['language_code']);
-		        telegram_log('CMDS', $USERID, 'lowertitle' . print_r($lowertitle,true));
-		        telegram_log('CMDS', $USERID, 'lowermessage ' . print_r($lowermessage,true));
-		
+	
          if( empty(array_intersect ($lowermessageelements, $lowertitle)) ){
-             			telegram_log('CMDS', $USERID, 'removed ' . print_r($res[$reskey],true));
 						unset($res[$reskey]);
             }
 		}
