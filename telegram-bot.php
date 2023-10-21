@@ -255,6 +255,38 @@ function telegram_sendmessage( $chat_id, $text, $reply_markup = null, $disable_w
     return true;
 }
 
+function telegram_sendvenue_prt( $chat_id, $lat, $long ) {
+	
+    if ( !$chat_id ) { return; }
+
+    $params = array (
+            'chat_id'	=> $chat_id,
+            'latitude' 	=> $lat,
+            'longitude' => $long,
+            'title'	=> 'Portum Lines, DOCK 42 port',
+            'address'	=> 'Carl Lutz rktp., 1131 Budapest',
+            'foursquare_id' => '57061b88498e32df666d0fe7'
+        );
+    
+    $url = 'https://api.telegram.org/bot' . telegram_option('token') . '/sendVenue';
+
+    @file_get_contents($url . '?' . http_build_query($params));
+
+    telegram_increase_dispatch();
+
+    if ( $http_response_header['0'] == 'HTTP/1.1 400 Bad Request') {
+        telegram_log('####', $chat_id, 'Error: incorrect parameters due to: '.$http_response_header['0'].' '.implode(' ', $params ));
+        return false;
+    } else if ( $http_response_header['0'] == 'HTTP/1.1 403 Forbidden') {
+        telegram_log('####', $chat_id, 'User removed because bot has been blocked: '.$http_response_header['0']);
+        wp_delete_post( telegram_getid( $chat_id ) );
+        return false;
+    }
+
+    telegram_log('<<<< LOCATION', $chat_id, 'Dock 42 location sent');
+    return true;
+}
+
 function telegram_build_reply_markup( $keyboard_template, $one_time = false, $resize = true ) {
     return array(
         'keyboard' => telegram_get_keyboard_layout( $keyboard_template ),
@@ -287,9 +319,10 @@ function telegram_sendphoto($chat_id, $caption, $photo) {
     $caption = telegram_parsetext($caption, 'photo', $chat_id);
 	$url = 'https://api.telegram.org/bot' . telegram_option('token') . '/sendPhoto';
 	$photo = getFullPath($photo);
-	$data = compact('chat_id', 'caption', 'photo', 'reply_markup');
+	$parse_mode = 'Markdown';
+	$data = compact('chat_id', 'parse_mode', 'caption', 'photo', 'reply_markup');
 	$finfo = finfo_open(FILEINFO_MIME_TYPE);
-	$mime_type = finfo_file($finfo, $data['photo']);
+	$mime_type = geturlmimetype($photo);;
 	$data['photo'] = new CurlFile($data['photo'], $mime_type, $data['photo']);
 	$ch = curl_init();
 	curl_setopt($ch, CURLOPT_URL, $url);
@@ -383,6 +416,11 @@ function getFullPath($url) {
 	return realpath(str_replace(get_bloginfo('url') , '.', $url));
 }
 
+function geturlmimetype($image_path)
+{
+    return image_type_to_mime_type(exif_imagetype($image_path));
+}
+
 function telegram_geturl() {
 	return 'https://api.telegram.org/bot' . telegram_option('token') . '/';
 }
@@ -440,7 +478,7 @@ function telegram_get_data_array() {
     return (array)json_decode($json, TRUE);
 }
 
-function telegram_download_file( $telegram_user_id, $file_id, $directory = '' ) {
+function telegram_download_file( $telegram_user_id, $file_id, $directory = '', $imgcaption = null ) {
 	$url =  telegram_geturl().'getFile?file_id='.$file_id;
 	$response = file_get_contents($url);
 
@@ -466,6 +504,7 @@ function telegram_download_file( $telegram_user_id, $file_id, $directory = '' ) 
 		}
 	} else {
 		telegram_log('', $telegram_user_id, 'Received and saved image');
+		file_put_contents( $local_dir.'/'. time() . '_caption.txt', $imgcaption);
 		return get_site_url() . '/wp-content/uploads/telegram-bot/'.$plugin_post_id.'/'.$file_name;
 	}
 }
