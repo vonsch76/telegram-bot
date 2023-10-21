@@ -152,22 +152,22 @@
             }
 		}
 			
-        if(count($res) >= 1) {
-            $ok_found = true;
-            foreach($res as $reselement) {
-                $postid = (int) $reselement->ID;
-                if($postid) {
-				    if ( has_post_thumbnail( $postid ) ) {
-                        $image = wp_get_attachment_image_src( get_post_thumbnail_id( $postid ), 'medium', true );
-                        telegram_sendphoto( $USERID, $postid, $image[0] );
-          	        }
-                    else {
-                        telegram_sendmessage( $USERID, $postid );
-                    } 
-			    }
-            }
-		}
-		}
+	if(count($res) >= 1) {
+            	$ok_found = true;
+            	foreach($res as $reselement) {
+                	$postid = (int) $reselement->ID;
+                	if($postid) {
+					if ( has_post_thumbnail( $postid ) ) {
+                        			$image = wp_get_attachment_image_src( get_post_thumbnail_id( $postid ), 'medium', true );
+                        			telegram_sendphoto( $USERID, $postid, $image[0] );
+          	        		}
+                    			else {
+                        			telegram_sendmessage( $USERID, $postid );
+                    			} 
+			}
+            	}
+		} // commands found
+	} // if there is a command
 		
 	if ( $PRIVATE ) {
 		switch ($data['message']['text']) {
