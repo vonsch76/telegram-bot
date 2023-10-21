@@ -95,7 +95,7 @@
     } else if ( isset( $data['message']['photo'] ) ) {
 	    	$imgcaption = date("F j, Y, g:i a") . ' from: @' . $data['message']['from']['username'] . ' ' . $data['message']['from']['first_name'] . ' ' . $data['message']['caption'];
 		do_action( 'telegram_parse_photo', $USERID, $data['message']['photo'], $imgcaption );
-		return;,
+		return;
 	} else if ( isset( $data['message']['document'] ) ) {
 		if( $data['message']['document']['mime_type'] == 'image/jpeg' ) {
 			$imgcaption = date("F j, Y, g:i a") . ' from: @' . $data['message']['from']['username'] . ' ' . $data['message']['from']['first_name'] . ' ' . $data['message']['caption'];
@@ -165,7 +165,9 @@
                         telegram_sendmessage( $USERID, $postid );
                     } 
 			    }
-            } 
+            }
+		}
+		}
 		
 	if ( $PRIVATE ) {
 		switch ($data['message']['text']) {
