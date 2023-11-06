@@ -93,7 +93,7 @@
         do_action( 'telegram_parse_location', $USERID, $data['message']['location']['latitude'], $data['message']['location']['longitude']);
         return;
     } else if ( isset( $data['message']['photo'] ) ) {
-	    	$imgcaption = date("F j, Y, g:i a") . ' from: @' . $data['message']['from']['username'] . ' ' . $data['message']['from']['first_name'] . ' ' . $data['message']['caption'];
+    		$imgcaption = date("F j, Y, g:i a") . ' from: @' . $data['message']['from']['username'] ?? 'no_username' . ' ' . $data['message']['from']['first_name'] ?? 'no_firstname'. ' ' . $data['message']['from']['last_name'] ?? 'no_lastname' . ' ' . $data['message']['caption'] ?? 'no_usercaption';
 		do_action( 'telegram_parse_photo', $USERID, $data['message']['photo'], $imgcaption );
 		return;
 	} else if ( isset( $data['message']['document'] ) ) {
